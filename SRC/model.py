@@ -14,6 +14,7 @@ class InputEmbedding(nn.Module):
 
 class PositionalEncoding(nn.Module):
   def __init__(self,d_model :int,seq : int, dropout : float):
+    super().__init__()
     self.d_model = d_model
     self.seq = seq
     self.dropout = nn.Dropout(dropout)
@@ -46,6 +47,7 @@ class PositionalEncoding(nn.Module):
 class LayerNormalization(nn.Module):
   
   def __init__(self,features: int, eps : float = 10 ** -6):
+    super().__init__()
     self.eps = eps
     self.alpha = nn.Parameter(torch.ones(features))
     self.beta = nn.Parameter(torch.zeros(features))
@@ -58,4 +60,17 @@ class LayerNormalization(nn.Module):
     return self.alpha * (x-mean)/(std + self.eps) + self.beta
   
     
+class FeedForward(nn.Module):
+  
+  def __init__(self, d_model : int, d_ff : int, dropout : float):
+    super().__init__()
+    self.linear_1 = nn.Linear(d_model, d_ff)
+    self.dropout = nn.Dropout(dropout)
+    self.linear_2 = nn.Linear(d_ff, d_model)
+    
+  def forward(self, x):
+    #(batch, seq, d_model) --> (batch, seq, d_ff) --> (batch, seq, d_model)
+    return self.linear_2(self.dropout(self.linear_1(x)))
+  
+  
     
