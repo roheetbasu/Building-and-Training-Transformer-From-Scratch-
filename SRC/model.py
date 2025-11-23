@@ -72,5 +72,19 @@ class FeedForward(nn.Module):
     #(batch, seq, d_model) --> (batch, seq, d_ff) --> (batch, seq, d_model)
     return self.linear_2(self.dropout(self.linear_1(x)))
   
-  
+class MultiHeadAttention(nn.Module):
+
+  def __init__(self,d_model : int, num_heads : int ,dropout: float):
+    super().__init__()
+    self.d_model = d_model
+    self.num_heads = num_heads
+    assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
+
+    self.d_k = d_model // num_heads
+    self.w_q = nn.Linear(d_model, d_model, bias=False) # wq
+    self.w_k = nn.Linear(d_model, d_model, bias=False) # wk
+    self.w_v = nn.Linear(d_model, d_model, bias=False) # wv
+    self.w_o = nn.Linear(d_model, d_model, bias=False) #wo
+    self.dropout = nn.Dropout(dropout)
+
     
