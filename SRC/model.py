@@ -127,5 +127,27 @@ class MultiHeadAttention(nn.Module):
 
         # output projection
         return self.w_o(x)
+      
+class ResidualConnection(nn.Module):
 
-    
+  def __init__(self, features : int, dropout : float):
+    super().__init__()
+    self.dropout = nn.Dropout(dropout)
+    self.norm = LayerNormalization(features)
+
+  def forward(self, x, sublayer):
+    return x + self.dropout(sublayer(self.norm(x))) # (batch, seq, d_model)
+
+
+class EncoderBlock(nn.Module):
+
+  def __init__(self, features : int, attention_block : MultiHeadAttention, feed_forward_block : FeedForward, dropout : float):
+    super().__init__()
+    self.attention_block = attention_block
+    self.feed_forward_block = feed_forward_block
+    self.residual_connections = nn.ModuleList([ResidualConnection(features,dropout)for _ in range(2)])
+
+  def forward(self, x, src_mask):
+    x = self.residual_connections[0](x, lambda x: self.attention_block(x,x,x,src_mask))
+    x = self.residual_connections[1](x, self.feed_forward_block)
+    return x  
