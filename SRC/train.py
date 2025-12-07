@@ -23,4 +23,7 @@ from tokenizers.pre_tokenizers import Whitespace
 import torchmetrics
 from torch.utils.tensorboard import SummaryWriter
 
-
+def get_all_sentences(ds ,lang):
+    for item in ds:
+        yield ds["translation"][lang]
+    
