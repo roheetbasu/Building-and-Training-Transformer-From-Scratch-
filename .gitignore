@@ -1,6 +1,8 @@
 __pycache__/
+venv310/
 opus_books_weights/
 weights/
+main.ipynb
 *.pt
 *.pth
 *.bin

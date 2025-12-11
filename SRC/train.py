@@ -1,8 +1,8 @@
-from model import build_transformer
-from dataset import TranslationDataset
-from config import get_config,get_weights_file_path,latest_weights_file_path
+from SRC.model import build_transformer
+from SRC.dataset import TranslationDataset
+from SRC.config import get_config,get_weights_file_path,latest_weights_file_path
 
-import torchtext.datasets as datasets
+import datasets
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -190,7 +190,7 @@ def train_model(config):
         }, model_filename)
     
     
-if __name__ == '__main__':
-    warnings.filterwarnings("ignore")
-    config = get_config()
-    train_model(config)
+# if __name__ == '__main__':
+#     warnings.filterwarnings("ignore")
+#     config = get_config()
+#     train_model(config)
