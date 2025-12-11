@@ -83,6 +83,7 @@ def get_model(config, vocab_src_len, vocab_tgt_len):
         d_model=config['d_model']
     )
     return model
+       
 
 
 def train_model(config):
@@ -108,6 +109,88 @@ def train_model(config):
     global_step = 0
     preload = config['preload']
     model_filename =latest_weights_file_path(config) if preload == "latest" else get_weights_file_path(config, preload) if preload else None
+    if model_filename:
+        print(f"Preloading Model: {model_filename}")
+        state = torch.load(model_filename)
+        model.load_state_dict(state['model_state_dict'])
+        initial_epoch = state['epoch'] + 1
+        optimizer.load_state_dict(state['optimizer_state_dict'])
+        global_step = state['global_step']
+    else:
+        print(f"No Model to preload")
+        
+    loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1)
+
+    for epoch in range(initial_epoch, config['num_epochs']):
+        torch.cuda.empty_cache()
+        model.train()
+        batch_iterator =tqdm(train_dataloader, desc=f"Processing Epoch {epoch:02d}")
+        for batch in batch_iterator:
+            
+            encoder_input = batch['encoder_input'].to(device) # (b, seq)
+            decoder_input = batch['decoder_input'].to(device) # (B, seq)
+            encoder_mask = batch['encoder_mask'].to(device) # (B, 1, 1, seq)
+            decoder_mask = batch['decoder_mask'].to(device) # (B, 1, seq, seq)
+            
+            #Run tensors through the encoder, decoder and the projection layer
+            encoder_output = model.encode(encoder_input, encoder_mask)#(B, seq, d_model)
+            decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask)#(B, seq, d_model)
+            proj_output = model.project(decoder_output)
+            
+            #compare the output with label
+            label = batch["label"].to(device)
+            
+            loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
+            batch_iterator.set_postfix({"loss":f"{loss.item():6.3f}"})
+            
+            # Log the loss
+            writer.add_scalar(f'Epoch {epoch:02d} Train loss', loss.item(), global_step)
+            writer.flush()
+            
+            #backpropagation
+            loss.backward()
+            
+            #update the weights
+            optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
+            
+            global_step += 1
+            
+        # Validation loop
+        model.eval()
+        val_loss_total = 0.0
+        with torch.no_grad():
+            for val_batch in val_dataloader:
+                encoder_input = val_batch['encoder_input'].to(device)
+                decoder_input = val_batch['decoder_input'].to(device)
+                encoder_mask = val_batch['encoder_mask'].to(device)
+                decoder_mask = val_batch['decoder_mask'].to(device)
+                label = val_batch['label'].to(device)
+
+                # Forward pass
+                encoder_output = model.encode(encoder_input, encoder_mask)
+                decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask)
+                proj_output = model.project(decoder_output)
+
+                # Compute validation loss
+                val_loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
+                val_loss_total += val_loss.item()
+
+        avg_val_loss = val_loss_total / len(val_dataloader)
+        batch_iterator.write(f"Epoch {epoch:02d} Validation Loss: {avg_val_loss:.4f}")
+        writer.add_scalar('val_loss', avg_val_loss, global_step)
+        
+    # Save the model at the end of every epoch
+    model_filename = get_weights_file_path(config, f"{epoch:02d}")
+    torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'global_step': global_step
+        }, model_filename)
     
     
-    
+if __name__ == '__main__':
+    warnings.filterwarnings("ignore")
+    config = get_config()
+    train_model(config)
