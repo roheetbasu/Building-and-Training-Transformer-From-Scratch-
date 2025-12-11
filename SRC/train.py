@@ -73,3 +73,41 @@ def get_ds(config):
     val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=True)
 
     return train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt
+
+def get_model(config, vocab_src_len, vocab_tgt_len):
+    model = build_transformer(
+        src_vocab_size=vocab_src_len,
+        tgt_vocab_size=vocab_tgt_len,
+        src_seq=config["seq"],
+        tgt_seq=config["seq"],
+        d_model=config['d_model']
+    )
+    return model
+
+
+def train_model(config):
+    #Define the device
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("Using device:",device)
+    
+    device =torch.device(device)
+    
+    # Make sure the weights folder exists
+    Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
+    
+    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt =  get_ds(config)
+    model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size())
+    
+    # Tensorboard
+    writer = SummaryWriter(config['experiment_name'])
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
+    
+    # If the user specified a model to preload before training, load it
+    initial_epoch = 0
+    global_step = 0
+    preload = config['preload']
+    model_filename =latest_weights_file_path(config) if preload == "latest" else get_weights_file_path(config, preload) if preload else None
+    
+    
+    
