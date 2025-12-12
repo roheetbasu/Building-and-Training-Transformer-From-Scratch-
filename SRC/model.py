@@ -23,7 +23,7 @@ class PositionalEncoding(nn.Module):
     pe = torch.zeros(seq,d_model)
 
     # create a vector of shape (seq)
-    position = torch.arange(0, seq, d_type=torch.float).unsqueeze(1)
+    position = torch.arange(0, seq, dtype=torch.float).unsqueeze(1)
 
     # create a vector of shape (d_model)
     div_term = torch.exp(torch.arange(0, d_model,2).float * -(math.log(10000.0) / d_model))
@@ -41,7 +41,7 @@ class PositionalEncoding(nn.Module):
     self.register_buffer('pe', pe)
 
   def forward(self, x):
-    x = x + (self.pe[:, :x.shape[1],:]).requires_grad_(False) # (batch, seq, d_model)
+    x = x + self.pe[:, :x.size(1), :].detach()# (batch, seq, d_model)
     return self.dropout(x)
   
 class LayerNormalization(nn.Module):
@@ -55,7 +55,7 @@ class LayerNormalization(nn.Module):
   def forward(self, x):
     # x : (batchsize, seq, hiddensize)
     mean = x.mean(dim=-1, keepdim=True) # (batchsize, seq, 1)
-    std = x.std(dim=1, keepdim=True) #(batchsize, seq,  1)
+    std = x.std(dim=-1, keepdim=True) #(batchsize, seq,  1)
     
     return self.alpha * (x-mean)/(std + self.eps) + self.beta
   
@@ -148,7 +148,7 @@ class EncoderBlock(nn.Module):
     self.residual_connections = nn.ModuleList([ResidualConnection(features,dropout)for _ in range(2)])
 
   def forward(self, x, src_mask):
-    x = self.residual_connections[0](x, lambda x: self.attention_block(x,x,x,src_mask))
+    x = self.residual_connections[0](x, lambda x: self.self_attention_block(x,x,x,src_mask))
     x = self.residual_connections[1](x, self.feed_forward_block)
     return x
 
@@ -169,7 +169,7 @@ class Encoder(nn.Module):
 class DecoderBlock(nn.Module):
 
   def __init__(self, features: int, self_attention_block : MultiHeadAttention, cross_attention_block : MultiHeadAttention, feed_forward_block : FeedForward, dropout : float):
-    super().__init_()
+    super().__init__()
     self.self_attention_block = self_attention_block
     self.cross_attention_block = cross_attention_block
     self.feed_forward_block = feed_forward_block
