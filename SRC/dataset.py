@@ -22,7 +22,7 @@ class TranslationDataset(Dataset):
         return len(self.ds)
     
     def __getitem__(self, idx):
-        src_target_pair = self.ds(idx)
+        src_target_pair = self.ds[idx]
         src_text = src_target_pair['translation'][self.src_lang]
         tgt_text = src_target_pair['translation'][self.tgt_lang]
         
