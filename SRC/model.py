@@ -26,7 +26,7 @@ class PositionalEncoding(nn.Module):
     position = torch.arange(0, seq, dtype=torch.float).unsqueeze(1)
 
     # create a vector of shape (d_model)
-    div_term = torch.exp(torch.arange(0, d_model,2).float * -(math.log(10000.0) / d_model))
+    div_term = torch.exp(torch.arange(0, d_model, 2, dtype=torch.float32) * -(math.log(10000.0) / d_model))
 
     #apply sine to indices
     pe[:, 0::2] = torch.sin(position * div_term)
