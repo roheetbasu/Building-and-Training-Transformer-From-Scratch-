@@ -25,7 +25,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 def get_all_sentences(ds ,lang):
     for item in ds:
-        yield ds["translation"][lang]
+        yield item["translation"][lang]
         
 def get_or_build_tokenizer(config, ds, lang):
     tokenizer_path = Path(config['tokenizer_file'].format(lang))
