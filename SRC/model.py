@@ -232,7 +232,7 @@ class Transformer(nn.Module):
     return self.projection_layer(x)
   
   
-def build_transformer(self, src_vocab_size: int, tgt_vocab_size: int, src_seq:int, tgt_seq:int, d_model:int = 512, N : int= 6, num_head : int=8, dropout: float=0.1, d_ff: int=2048 ):
+def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq:int, tgt_seq:int, d_model:int = 512, N : int= 6, num_head : int=8, dropout: float=0.1, d_ff: int=2048 ):
   #creating
   src_embed = InputEmbedding(d_model, src_vocab_size)
   tgt_embed = InputEmbedding(d_model, tgt_vocab_size)
