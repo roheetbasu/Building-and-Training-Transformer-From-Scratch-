@@ -120,7 +120,7 @@ def train_model(config):
     else:
         print(f"No Model to preload")
         
-    loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1)
+    loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_tgt.token_to_id('[PAD]'), label_smoothing=0.1)
 
     for epoch in range(initial_epoch, config['num_epochs']):
         torch.cuda.empty_cache()
