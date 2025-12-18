@@ -84,7 +84,7 @@ def get_model(config, vocab_src_len, vocab_tgt_len):
     )
     return model
        
-def greedy_decode(model, encoder_input, encoder_mask, tokenizer_tgt, max_len, device):
+def greedy_decode(model, encoder_output, encoder_mask, tokenizer_tgt, max_len, device):
     sos_id = tokenizer_tgt.token_to_id("[SOS]")
     eos_id = tokenizer_tgt.token_to_id("[EOS]")
 
@@ -113,6 +113,43 @@ def greedy_decode(model, encoder_input, encoder_mask, tokenizer_tgt, max_len, de
             break
 
     return decoder_input
+
+def run_autoregressive_validation(
+    model, val_dataloader, tokenizer_src, tokenizer_tgt, device, max_len=50, num_examples=3
+):
+    model.eval()
+    printed = 0
+
+    with torch.no_grad():
+        for batch in val_dataloader:
+            encoder_input = batch['encoder_input'].to(device)
+            encoder_mask = batch['encoder_mask'].to(device)
+
+            encoder_output = model.encode(encoder_input, encoder_mask)
+
+            decoded_ids = greedy_decode(
+                model, encoder_output, encoder_mask,
+                tokenizer_tgt, max_len, device
+            )
+
+            src_text = tokenizer_src.decode(
+                encoder_input[0].cpu().tolist(), skip_special_tokens=True
+            )
+            tgt_text = tokenizer_tgt.decode(
+                batch["label"][0].cpu().tolist(), skip_special_tokens=True
+            )
+            pred_text = tokenizer_tgt.decode(
+                decoded_ids[0].cpu().tolist(), skip_special_tokens=True
+            )
+
+            print("\nSOURCE :", src_text)
+            print("TARGET :", tgt_text)
+            print("PRED   :", pred_text)
+
+            printed += 1
+            if printed >= num_examples:
+                break
+
 
 def train_model(config):
     #Define the device
@@ -185,29 +222,42 @@ def train_model(config):
             
             global_step += 1
             
-        # Validation loop
-        model.eval()
-        val_loss_total = 0.0
-        with torch.no_grad():
-            for val_batch in val_dataloader:
-                encoder_input = val_batch['encoder_input'].to(device)
-                decoder_input = val_batch['decoder_input'].to(device)
-                encoder_mask = val_batch['encoder_mask'].to(device)
-                decoder_mask = val_batch['decoder_mask'].to(device)
-                label = val_batch['label'].to(device)
+        # # Validation loop
+        # model.eval()
+        # val_loss_total = 0.0
+        # with torch.no_grad():
+        #     for val_batch in val_dataloader:
+        #         encoder_input = val_batch['encoder_input'].to(device)
+        #         decoder_input = val_batch['decoder_input'].to(device)
+        #         encoder_mask = val_batch['encoder_mask'].to(device)
+        #         decoder_mask = val_batch['decoder_mask'].to(device)
+        #         label = val_batch['label'].to(device)
 
-                # Forward pass
-                encoder_output = model.encode(encoder_input, encoder_mask)
-                decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask)
-                proj_output = model.project(decoder_output)
+        #         # Forward pass
+        #         encoder_output = model.encode(encoder_input, encoder_mask)
+        #         decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask)
+        #         proj_output = model.project(decoder_output)
 
-                # Compute validation loss
-                val_loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
-                val_loss_total += val_loss.item()
+        #         # Compute validation loss
+        #         val_loss = loss_fn(proj_output.view(-1, tokenizer_tgt.get_vocab_size()), label.view(-1))
+        #         val_loss_total += val_loss.item()
 
-        avg_val_loss = val_loss_total / len(val_dataloader)
-        batch_iterator.write(f"Epoch {epoch:02d} Validation Loss: {avg_val_loss:.4f}")
-        writer.add_scalar('val_loss', avg_val_loss, global_step)
+        # avg_val_loss = val_loss_total / len(val_dataloader)
+        # batch_iterator.write(f"Epoch {epoch:02d} Validation Loss: {avg_val_loss:.4f}")
+        # writer.add_scalar('val_loss', avg_val_loss, global_step)
+        
+        # --- Autoregressive evaluation ---
+        if epoch % 1 == 0:  # or every few epochs
+            print("\n--- Autoregressive validation ---")
+            run_autoregressive_validation(
+                model,
+                val_dataloader,
+                tokenizer_src,
+                tokenizer_tgt,
+                device,
+                max_len=config["seq"],
+                num_examples=3
+            )
         
     # Save the model at the end of every epoch
     model_filename = get_weights_file_path(config, f"{epoch:02d}")
