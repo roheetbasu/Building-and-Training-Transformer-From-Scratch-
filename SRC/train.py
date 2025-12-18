@@ -84,7 +84,35 @@ def get_model(config, vocab_src_len, vocab_tgt_len):
     )
     return model
        
+def greedy_decode(model, encoder_input, encoder_mask, tokenizer_tgt, max_len, device):
+    sos_id = tokenizer_tgt.token_to_id("[SOS]")
+    eos_id = tokenizer_tgt.token_to_id("[EOS]")
 
+    decoder_input = torch.tensor([[sos_id]], device=device)
+
+    for _ in range(max_len):
+        seq_len = decoder_input.size(1)
+
+        decoder_mask = (
+            (decoder_input != tokenizer_tgt.token_to_id("[PAD]"))
+            .unsqueeze(1)
+            .unsqueeze(1)
+            & torch.tril(torch.ones((1, seq_len, seq_len), device=device)).bool()
+        )
+
+        decoder_output = model.decode(
+            encoder_output, encoder_mask, decoder_input, decoder_mask
+        )
+
+        logits = model.project(decoder_output[:, -1])
+        next_token = torch.argmax(logits, dim=-1).unsqueeze(1)
+
+        decoder_input = torch.cat([decoder_input, next_token], dim=1)
+
+        if next_token.item() == eos_id:
+            break
+
+    return decoder_input
 
 def train_model(config):
     #Define the device
